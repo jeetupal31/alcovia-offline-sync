@@ -4,3 +4,4 @@ server.log
 .DS_Store
 .expo/
 dist/
+README-STEP*.md
