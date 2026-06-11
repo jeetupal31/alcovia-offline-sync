@@ -1,0 +1,55 @@
+{
+  "name": "Alcovia - session success notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alcovia-session-success",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "f1a2b3c4-0001-4001-8001-aaaaaaaaaaaa",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "f1a2b3c4-0002-4002-8002-bbbbbbbbbbbb"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Exactly-once guard.\n// The backend may legitimately deliver the same event twice (e.g. a retry\n// after a timeout, or the same session syncing from two devices). We remember\n// every eventId in the workflow's static data and drop repeats, so the\n// notification fires exactly once per successful session.\nconst data = $input.first().json;\nconst payload = data.body ?? data; // webhook v2 wraps the POST body under .body\nconst eventId = payload.eventId;\nif (!eventId) return [];\nconst staticData = $getWorkflowStaticData('global');\nstaticData.seen = staticData.seen || {};\nif (staticData.seen[eventId]) {\n  // duplicate delivery -> stop here, send nothing\n  return [];\n}\nstaticData.seen[eventId] = new Date().toISOString();\nreturn [{ json: payload }];"
+      },
+      "id": "f1a2b3c4-0003-4003-8003-cccccccccccc",
+      "name": "Dedupe by eventId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/mock-whatsapp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "f1a2b3c4-0004-4004-8004-dddddddddddd",
+      "name": "Send WhatsApp (mock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Dedupe by eventId", "type": "main", "index": 0 }]]
+    },
+    "Dedupe by eventId": {
+      "main": [[{ "node": "Send WhatsApp (mock)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "active": false
+}
